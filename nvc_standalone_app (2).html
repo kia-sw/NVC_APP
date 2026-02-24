@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NVC Konfliktlösare</title>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // Lucide React Icons som SVG komponenter
+        const Heart = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+        );
+
+        const ArrowRight = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+        );
+
+        const ArrowLeft = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+        );
+
+        const AlertCircle = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        );
+
+        const CheckCircle2 = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
+                <path d="m9 12 2 2 4-4"></path>
+            </svg>
+        );
+
+        const Lightbulb = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path>
+                <path d="M9 18h6"></path>
+                <path d="M10 22h4"></path>
+            </svg>
+        );
+
+        const MessageCircle = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+            </svg>
+        );
+
+        const Users = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+        );
+
+        const NVCApp = () => {
+            const [currentStep, setCurrentStep] = useState(0);
+            const [responses, setResponses] = useState({
+                conflict: '',
+                observation: '',
+                feelings: '',
+                needs: '',
+                request: '',
+                empathy: ''
+            });
+            const [feedback, setFeedback] = useState(null);
+            const [showResults, setShowResults] = useState(false);
+
+            const analyzeObservation = (text) => {
+                const judgmentWords = ['alltid', 'aldrig', 'borde', 'måste', 'fel', 'rätt', 'dålig', 'bra', 'lat', 'oansvarig', 'inkompetent', 'elak', 'dum'];
+                const interpretationWords = ['vill inte', 'bryr sig inte', 'avsiktligt', 'medvetet', 'försöker', 'menar att'];
+                
+                const foundJudgments = judgmentWords.filter(word => text.toLowerCase().includes(word));
+                const foundInterpretations = interpretationWords.filter(word => text.toLowerCase().includes(word));
+                
+                if (foundJudgments.length > 0 || foundInterpretations.length > 0) {
+                    return {
+                        type: 'warning',
+                        message: 'Jag märker några värdeladdade ord i din observation:',
+                        issues: [
+                            ...foundJudgments.map(w => `"${w}" är en värdering`),
+                            ...foundInterpretations.map(w => `"${w}" är en tolkning av avsikt`)
+                        ],
+                        suggestion: 'Försök beskriva bara vad du såg eller hörde. Exempel: Istället för "Han är lat" → "Han lämnade in rapporten tre dagar efter deadline"',
+                        phrases: [
+                            'Jag såg/hörde att...',
+                            'När X hände...',
+                            'Under mötet sades/gjordes...'
+                        ]
+                    };
+                }
+                
+                return {
+                    type: 'success',
+                    message: 'Bra! Din observation är objektiv och konkret.',
+                    suggestion: 'Du beskriver fakta utan värderingar. Detta skapar en grund för konstruktiv kommunikation.',
+                    phrases: []
+                };
+            };
+
+            const analyzeFeelings = (text) => {
+                const pseudoFeelings = ['att du', 'att han', 'att hon', 'att de', 'ignorerad', 'förrådd', 'attackerad', 'missförstådd', 'använd'];
+                const genuineFeelings = ['glad', 'ledsen', 'rädd', 'arg', 'frustrerad', 'besviken', 'orolig', 'nervös', 'stressad', 'entusiastisk', 'tacksam', 'hopp'];
+                
+                const foundPseudo = pseudoFeelings.filter(word => text.toLowerCase().includes(word));
+                const foundGenuine = genuineFeelings.filter(word => text.toLowerCase().includes(word));
+                
+                if (foundPseudo.length > 0) {
+                    return {
+                        type: 'warning',
+                        message: 'Jag ser att du blandar känslor med tankar eller tolkningar:',
+                        issues: foundPseudo.map(w => `"${w}" är en tanke/tolkning, inte en känsla`),
+                        suggestion: 'Känslor beskriver ditt inre tillstånd. Fråga dig: Vad känner JAG i min kropp och mitt hjärta?',
+                        phrases: [
+                            'Jag känner mig ledsen när...',
+                            'Jag känner mig frustrerad för att...',
+                            'Jag känner mig orolig eftersom...'
+                        ]
+                    };
+                }
+                
+                if (foundGenuine.length > 0) {
+                    return {
+                        type: 'success',
+                        message: 'Utmärkt! Du uttrycker genuina känslor.',
+                        suggestion: 'Dessa känslor pekar på viktiga behov hos dig.',
+                        phrases: []
+                    };
+                }
+                
+                return {
+                    type: 'info',
+                    message: 'Försök identifiera dina känslor mer specifikt.',
+                    suggestion: 'Vanliga känslor: glad, ledsen, rädd, arg, frustrerad, besviken, orolig, stressad.',
+                    phrases: [
+                        'När jag tänker på detta känner jag mig...',
+                        'I min kropp märker jag att jag är...'
+                    ]
+                };
+            };
+
+            const analyzeNeeds = (text) => {
+                const strategies = ['att han', 'att hon', 'att du', 'att de', 'skulle', 'måste'];
+                const universalNeeds = ['respekt', 'förståelse', 'trygghet', 'autonomi', 'samhörighet', 'stöd', 'uppskattning', 'förtroende', 'klarhet', 'samarbete'];
+                
+                const foundStrategies = strategies.filter(word => text.toLowerCase().includes(word));
+                const foundNeeds = universalNeeds.filter(word => text.toLowerCase().includes(word));
+                
+                if (foundStrategies.length > 0) {
+                    return {
+                        type: 'warning',
+                        message: 'Du beskriver en strategi (hur någon ska bete sig) snarare än ett behov:',
+                        issues: foundStrategies.map(w => `"${w}" indikerar ett krav på andras beteende`),
+                        suggestion: 'Behov är universella. Fråga dig: Vad söker jag egentligen?',
+                        phrases: [
+                            'Jag har behov av respekt...',
+                            'Jag längtar efter förståelse...',
+                            'Mitt behov av autonomi...'
+                        ]
+                    };
+                }
+                
+                if (foundNeeds.length > 0) {
+                    return {
+                        type: 'success',
+                        message: 'Mycket bra! Du har identifierat universella mänskliga behov.',
+                        suggestion: `Behovet av ${foundNeeds[0]} är något alla människor kan relatera till.`,
+                        phrases: []
+                    };
+                }
+                
+                return {
+                    type: 'info',
+                    message: 'Försök identifiera det underliggande behovet.',
+                    suggestion: 'Vanliga behov: respekt, förståelse, trygghet, autonomi, samhörighet, stöd.',
+                    phrases: [
+                        'Mitt behov av ... är inte uppfyllt',
+                        'Jag söker ...'
+                    ]
+                };
+            };
+
+            const analyzeRequest = (text) => {
+                const negative = ['inte', 'sluta', 'undvik', 'låt bli'];
+                const vague = ['mer', 'bättre', 'mindre', 'oftare'];
+                
+                const hasNegative = negative.some(word => text.toLowerCase().includes(word));
+                const hasVague = vague.some(word => text.toLowerCase().includes(word));
+                
+                if (hasNegative) {
+                    return {
+                        type: 'warning',
+                        message: 'Din begäran är formulerad negativt (vad du INTE vill):',
+                        issues: ['Negativa begäran gör det svårt att veta vad du faktiskt vill'],
+                        suggestion: 'Formulera positivt: Vad vill du att personen GÖR istället?',
+                        phrases: [
+                            'Skulle du kunna... ?',
+                            'Vore du villig att... ?'
+                        ]
+                    };
+                }
+                
+                if (hasVague) {
+                    return {
+                        type: 'warning',
+                        message: 'Din begäran är lite vag:',
+                        issues: ['Var specifik: VEM ska göra VAD, NÄR?'],
+                        suggestion: 'Exempel: "Kan du informera mig senast kl 15 dagen före mötet om du inte kan närvara?"',
+                        phrases: []
+                    };
+                }
+                
+                return {
+                    type: 'success',
+                    message: 'Din begäran är konkret och genomförbar!',
+                    suggestion: 'Kom ihåg: En begäran är inte ett krav.',
+                    phrases: []
+                };
+            };
+
+            const generateSolution = () => {
+                const isWorkRelated = responses.conflict.toLowerCase().includes('kollega') || 
+                                      responses.conflict.toLowerCase().includes('chef') ||
+                                      responses.conflict.toLowerCase().includes('arbete') ||
+                                      responses.conflict.toLowerCase().includes('möte');
+                
+                const isRecurring = responses.conflict.toLowerCase().includes('igen') ||
+                                    responses.conflict.toLowerCase().includes('alltid') ||
+                                    responses.conflict.toLowerCase().includes('tredje') ||
+                                    responses.conflict.toLowerCase().includes('flera');
+
+                const dialogue = `SCENARIO 1 - Om personen är öppen:
+
+Du: "Hej, jag skulle vilja prata med dig om något som är viktigt för mig. Har du 15 minuter nu eller senare idag?"
+
+Personen: "Visst, vad gäller det?"
+
+Du: "När ${responses.observation.toLowerCase()}, känner jag mig ${responses.feelings.toLowerCase()}, eftersom jag har behov av ${responses.needs.toLowerCase()}. ${responses.request}"
+
+Personen: "Okej, jag förstår. Jag visste inte att du kände så."
+
+Du: "Tack för att du lyssnar. Jag är nyfiken - hur upplever du själv situationen? Vad tänker och känner du kring det här?"
+
+Personen: "Jag har varit väldigt stressad med..."
+
+Du: "Så om jag förstår dig rätt - du känner dig stressad och överbelastad, och har behov av mer tid eller avlastning? Är det rätt uppfattat?"
+
+Personen: "Ja, exakt."
+
+Du: "Hur tror du att vi kan hitta en lösning som fungerar för oss båda? Skulle det hjälpa om vi [konkret förslag baserat på deras behov]?"
+
+---
+
+SCENARIO 2 - Om personen blir defensiv:
+
+Du: "När ${responses.observation.toLowerCase()}, känner jag mig ${responses.feelings.toLowerCase()}..."
+
+Personen: "Men jag hade massor att göra! Du förstår inte hur mycket jag har på mitt bord!"
+
+Du: [PAUSA - andas] "Jag hör att du känner dig pressad och kanske lite frustrerad över att jag tar upp det här. Stämmer det?"
+
+Personen: "Ja! Jag gör mitt bästa!"
+
+Du: "Jag tror dig. Jag ser att du jobbar hårt. Mitt behov av ${responses.needs.toLowerCase()} handlar inte om att du inte gör ditt bästa - det handlar om hur vi kan samarbeta bättre. Kan vi tillsammans hitta ett sätt?"
+
+Personen: [Lugnar ner sig] "Okej... vad tänker du?"
+
+Du: "${responses.request} Skulle det fungera för dig?"
+
+---
+
+SCENARIO 3 - Om personen attackerar tillbaka:
+
+Personen: "Och DU då? Du glömde ju själv att..."
+
+Du: [VIKTIGT - bli inte defensiv] "Jag hör att du också har upplevt situationer där dina behov inte blivit uppfyllda. Det låter viktigt. Kan vi först avsluta det här samtalet och sedan ta ett separat samtal om din upplevelse? Jag vill verkligen höra den."
+
+Eller: "Det låter som att du också har saker du behöver ta upp. Ska vi boka 30 minuter där vi ger 15 minuter var till att prata om våra respektive upplevelser?"`;
+
+                const strategies = [
+                    {
+                        name: 'Självempati först',
+                        description: 'INNAN du pratar med personen - skriv ner dina observationer, känslor och behov. Ge dig själv empati. Fråga dig: "Vad är mitt verkliga behov här?" När du känner dig centrerad och kan uttrycka dig utan anklagelser - då är du redo.',
+                        when_to_use: 'Alltid som första steg. Om du är för arg/upprörd - ge dig själv empati först tills du kan prata lugnt.'
+                    },
+                    {
+                        name: 'Empati-gissning',
+                        description: 'Innan samtalet: skriv ner vad du TROR personen känner och behöver. Detta övar din förmåga att se deras perspektiv. Under samtalet: använd fraser som "Undrar om du känner dig..." eller "Kan det vara så att du behöver...?" - även om du har fel visar det att du bryr dig.',
+                        when_to_use: 'Alltid. Särskilt när konflikten är känslig eller du förväntar dig motstånd.'
+                    },
+                    {
+                        name: 'Tyst reflektion',
+                        description: 'Efter att personen pratat: pausa 3-5 sekunder innan du svarar. Reflektera tillbaka vad du hört: "Så du känner dig [känsla] eftersom du behöver [behov]?" Vänta på bekräftelse innan du fortsätter.',
+                        when_to_use: 'Under hela samtalet. Denna paus är AVGÖRANDE för att personen ska känna sig hörd.'
+                    },
+                    {
+                        name: 'Separera observation från tolkning',
+                        description: 'Om personen säger "Du bryr dig inte!" - svara INTE defensivt. Istället: "När du säger att jag inte bryr mig, känner du dig sårad och behöver trygghet i att vara viktig för mig?" Detta omvandlar attacken till ett behov du kan möta.',
+                        when_to_use: 'När personen använder anklagande språk eller tolkningar.'
+                    }
+                ];
+
+                const actionPlan = [
+                    'FÖRBEREDELSE (15-30 min före): Skriv ner hela din NVC-formulering på papper. Öva högt att säga den. Föreställ dig 3 olika sätt personen kan reagera och hur du ska hantera varje reaktion med empati. Gör 5 djupa andetag innan du går till samtalet.',
+                    
+                    'ÖPPNING - Fråga om tillåtelse: "Jag har något viktigt jag skulle vilja prata med dig om. Passar det nu eller ska vi boka en annan tid?" Detta visar respekt och ökar chansen att de lyssnar.',
+                    
+                    'DELA DIN NVC-FORMULERING: Säg EXAKT din observation, känslor, behov och begäran. Använd "jag-språk" genomgående. Pausa efter behov - ge personen tid att ta in det. Tala långsamt och lugnt.',
+                    
+                    'HANTERA DEFENSIVITET: Om personen blir defensiv - ERKÄNN DET omedelbart: "Jag märker att det här kanske väcker stark reaktion hos dig. Det är okej. Kan du berätta vad som händer för dig just nu?" GÅ ALDRIG I FÖRSVAR. Din uppgift är att lyssna empatiskt.',
+                    
+                    'EMPATISKT LYSSNANDE: När personen pratar - lyssna för att förstå deras KÄNSLOR och BEHOV (inte för att försvara dig eller motbevisa dem). Reflektera tillbaka: "Låter det som att du känner [gissa känsla] eftersom du behöver [gissa behov]?" Fråga "Är det rätt uppfattat?" Fortsätt tills de säger JA.',
+                    
+                    'GEMENSAM PROBLEMLÖSNING: När båda känner sig hörda - fråga: "Nu när vi förstår varandras behov - hur kan vi hitta en lösning som tillgodoser både ditt behov av [X] och mitt behov av [Y]?" Brainstorma tillsammans. Skriv ner lösningen ni kommer fram till.',
+                    
+                    'KONKRET ÖVERENSKOMMELSE: Formulera tydligt vad ni båda ska göra: "Så för att sammanfatta - du kommer att [konkret handling] och jag kommer att [konkret handling]. Är vi överens?" Skriv ner det.',
+                    
+                    'UPPFÖLJNING: Boka direkt en uppföljning: "Ska vi ses om en vecka och kolla hur det fungerar?" Detta visar att du är seriös och engagerad i relationen.'
+                ];
+
+                const redFlags = `UNDVIK DESSA VANLIGA NVC-MISSTAG:
+
+❌ "Jag känner att du är oansvarig" - Detta är INTE en känsla, det är en BEDÖMNING. Känsla: "Jag känner mig frustrerad/besviken/orolig"
+
+❌ "Jag känner mig ignorerad" - Detta är en PSEUDOKÄNSLA (dold anklagelse). Säg istället: "Jag känner mig ledsen och ensam eftersom mitt behov av samhörighet inte är uppfyllt"
+
+❌ "Du måste sluta..." - Detta är ett KRAV, inte en begäran. Begäran: "Skulle du vara villig att...?" eller "Kan du...?"
+
+❌ "Men det är ju ditt fel!" - NVC handlar INTE om att fastställa skuld. Fokusera på behov och lösningar.
+
+❌ Att använda NVC som manipulation: "När du inte lyssnar på mig känner jag mig frustrerad eftersom jag behöver respekt, så DU MÅSTE..." - Detta är inte äkta NVC. NVC är inte ett verktyg för att få din vilja igenom.
+
+❌ Att säga "Jag använder NVC nu" - Detta skapar distans. Prata naturligt men TÄNK enligt NVC-strukturen.
+
+${isRecurring ? '\n❌ "Du gör ALLTID detta!" - STOPPA. Även om det hänt många gånger - fokusera på DEN SPECIFIKA HÄNDELSEN. När tillit byggts upp kan ni prata om mönstret.' : ''}
+
+KRITISKT: Om personen blir mycket upprörd eller attackerande - PAUSA SAMTALET: "Jag märker att det här väcker stark reaktion. Ska vi ta en paus och fortsätta när vi båda känner oss lugnare?" Tvinga aldrig fram ett samtal.`;
+
+                const empathyTips = `DJUPDYKNING I EMPATISKT LYSSNANDE:
+
+STEG 1 - Närvaro (2-3 minuter)
+Innan ni börjar: Lägg bort telefonen. Sitt ner. Andas. Bestäm dig för att helt och hållet LYSSNA. Din agenda får vänta. Säg till dig själv: "I detta ögonblick är det viktigaste att förstå denna person."
+
+STEG 2 - Observera utan att tolka
+När personen pratar - lägg märke till deras:
+• Kroppsspråk (spänd? avslappnad? undvikande ögonkontakt?)
+• Tonfall (arg? ledsen? frustrerad?)
+• Ord de använder upprepade gånger
+GISSA vad detta säger om deras KÄNSLOR och BEHOV
+
+STEG 3 - Reflektera tillbaka (använd dessa EXAKTA fraser)
+"Låter det som att du känner dig [känsla] eftersom ditt behov av [behov] inte är uppfyllt?"
+"Är du [känsla] för att du behöver [behov]?"
+"Undrar om du känner [känsla]... stämmer det?"
+
+Om du gissar FEL - säg: "Hjälp mig förstå - vad är det du känner?"
+
+STEG 4 - Håll utrymmet
+Efter din reflektion - var TYST. Räkna till 5 i huvudet. Ge personen tid att tänka.
+Motstå frestelsen att:
+• Förklara dig
+• Rätta dem
+• Berätta din version
+• Lösa problemet
+Bara LYSSNA.
+
+STEG 5 - Fördjupa förståelsen
+När personen bekräftat att du förstått - fråga:
+"Kan du berätta mer om det?"
+"Vad är det i det här som känns viktigast för dig?"
+"Hur länge har du känt så här?"
+
+${responses.empathy}
+
+AVANCERAD TEKNIK - Silent Empathy:
+Om personen är för upprörd för att du ska reflektera tillbaka - ge TYST empati. Lyssna bara. Nicka. Ha ögonkontakt. Din närvaro och lyssnande är empatin. När de lugnat ner sig kan du reflektera tillbaka.
+
+TECKEN PÅ ATT DU LYCKAS:
+• Personen säger "Exakt!" eller "Ja, precis!"
+• Deras kroppsspråk mjuknar
+• De berättar mer och djupare
+• De avslutar med "Tack för att du lyssnade"
+
+OM DET INTE FUNGERAR:
+Om personen fortsätter vara defensiv trots din empati - de kanske inte är redo. Säg: "Jag märker att det här är svårt just nu. Kan vi fortsätta en annan gång?" Det är okej. NVC är inte magi - ibland behöver människor tid.`;
+
+                return {
+                    dialogue,
+                    strategies,
+                    actionPlan,
+                    redFlags,
+                    empathyTips
+                };
+            };
+
+            const steps = [
+                {
+                    id: 'conflict',
+                    title: 'Beskriv situationen',
+                    question: 'Vad har hänt? Beskriv konflikten eller problemet:',
+                    placeholder: 'Exempel: Min kollega kom inte till mötet igår och jag fick ta hela presentationen själv. Det är tredje gången på en månad...',
+                    help: 'Skriv fritt här. Vi kommer att gå igenom NVC-stegen tillsammans.'
+                },
+                {
+                    id: 'observation',
+                    title: '1. Observation',
+                    question: 'Vad hände konkret? Beskriv bara vad du såg eller hörde, utan värderingar:',
+                    placeholder: 'Exempel: Min kollega var inte på mötet kl 14:00 igår. Jag höll presentationen ensam i 30 minuter.',
+                    help: 'Tänk som en videokamera: Vad skulle den spela in?',
+                    analyze: analyzeObservation
+                },
+                {
+                    id: 'feelings',
+                    title: '2. Känslor',
+                    question: 'Vilka känslor väcks i dig när du tänker på detta?',
+                    placeholder: 'Exempel: Jag känner mig frustrerad, besviken och lite övergiven.',
+                    help: 'Undvik "jag känner att du..." - fokusera på vad DU känner.',
+                    analyze: analyzeFeelings
+                },
+                {
+                    id: 'needs',
+                    title: '3. Behov',
+                    question: 'Vilket behov hos dig är inte uppfyllt i denna situation?',
+                    placeholder: 'Exempel: Jag har behov av samarbete, pålitlighet och stöd i vårt gemensamma projekt.',
+                    help: 'Behov är universella - något alla människor har.',
+                    analyze: analyzeNeeds
+                },
+                {
+                    id: 'request',
+                    title: '4. Begäran',
+                    question: 'Vad vill du konkret att den andra personen gör?',
+                    placeholder: 'Exempel: Skulle du kunna meddela mig minst 24 timmar i förväg nästa gång du inte kan komma?',
+                    help: 'Var specifik och positiv (vad du VILL, inte vad du inte vill).',
+                    analyze: analyzeRequest
+                },
+                {
+                    id: 'empathy',
+                    title: '5. Empati',
+                    question: 'Vilka känslor och behov tror du den andra personen har?',
+                    placeholder: 'Exempel: Kanske känner sig min kollega stressad och har behov av balans mellan arbete och privatliv.',
+                    help: 'Gissa den andras perspektiv - detta förbereder dig för empatiskt lyssnande.'
+                }
+            ];
+
+            const handleInputChange = (value) => {
+                const stepId = steps[currentStep].id;
+                setResponses(prev => ({ ...prev, [stepId]: value }));
+                
+                if (steps[currentStep].analyze && value.length > 20) {
+                    const result = steps[currentStep].analyze(value);
+                    setFeedback(result);
+                } else {
+                    setFeedback(null);
+                }
+            };
+
+            const nextStep = () => {
+                if (currentStep < steps.length - 1) {
+                    setCurrentStep(currentStep + 1);
+                    setFeedback(null);
+                } else {
+                    setShowResults(true);
+                }
+            };
+
+            const prevStep = () => {
+                if (currentStep > 0) {
+                    setCurrentStep(currentStep - 1);
+                    setFeedback(null);
+                }
+            };
+
+            const reset = () => {
+                setCurrentStep(0);
+                setResponses({
+                    conflict: '',
+                    observation: '',
+                    feelings: '',
+                    needs: '',
+                    request: '',
+                    empathy: ''
+                });
+                setFeedback(null);
+                setShowResults(false);
+            };
+
+            const currentStepData = steps[currentStep];
+            const currentValue = responses[currentStepData.id];
+            const progress = ((currentStep + 1) / steps.length) * 100;
+
+            if (showResults) {
+                const solution = generateSolution();
+                
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4 md:p-6">
+                        <div className="max-w-4xl mx-auto space-y-6">
+                            <div className="bg-white rounded-2xl shadow-xl p-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-8 h-8 text-rose-500"><Heart /></div>
+                                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Din NVC-lösning</h1>
+                                </div>
+                                <p className="text-gray-600">Baserat på din situation har jag skapat en komplett handlingsplan.</p>
+                            </div>
+
+                            <div className="bg-white rounded-2xl shadow-xl p-6">
+                                <h2 className="text-xl font-bold text-gray-800 mb-4">Din NVC-kommunikation</h2>
+                                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4">
+                                    <p className="text-gray-700 leading-relaxed">
+                                        "När <span className="font-semibold text-purple-700">{responses.observation}</span>, känner jag mig <span className="font-semibold text-blue-700">{responses.feelings}</span>, eftersom jag har behov av <span className="font-semibold text-green-700">{responses.needs}</span>. <span className="font-semibold text-orange-700">{responses.request}</span>"
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-2xl shadow-xl p-6">
+                                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <div className="w-6 h-6 text-purple-600"><MessageCircle /></div>
+                                    Exempel på samtalet
+                                </h2>
+                                <div className="bg-gray-50 rounded-lg p-4">
+                                    <p className="text-gray-700 whitespace-pre-line leading-relaxed">{solution.dialogue}</p>
+                                </div>
+                                <p className="text-sm text-gray-600 mt-3">
+                                    Anpassa detta till din egen röst och situation. Det viktiga är att hålla fast vid NVC-strukturen.
+                                </p>
+                            </div>
+
+                            <div className="bg-white rounded-2xl shadow-xl p-6">
+                                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <div className="w-6 h-6 text-yellow-500"><Lightbulb /></div>
+                                    Möjliga strategier
+                                </h2>
+                                <div className="space-y-4">
+                                    {solution.strategies.map((strategy, index) => (
+                                        <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                            <h3 className="font-bold text-purple-600 mb-2">{strategy.name}</h3>
+                                            <p className="text-gray-700 mb-2">{strategy.description}</p>
+                                            <p className="text-sm text-gray-600 italic">
+                                                <strong>Använd när:</strong> {strategy.when_to_use}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl shadow-xl p-6">
+                                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <div className="w-6 h-6 text-green-600"><CheckCircle2 /></div>
+                                    Din handlingsplan
+                                </h2>
+                                <ol className="space-y-3">
+                                    {solution.actionPlan.map((step, index) => (
+                                        <li key={index} className="flex items-start gap-3">
+                                            <span className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                                                {index + 1}
+                                            </span>
+                                            <span className="text-gray-700 pt-1">{step}</span>
+                                        </li>
+                                    ))}
+                                </ol>
+                            </div>
+
+                            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl shadow-xl p-6">
+                                <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                    <div className="w-6 h-6 text-blue-600"><Users /></div>
+                                    Tips för empatiskt lyssnande
+                                </h2>
+                                <p className="text-gray-700 whitespace-pre-line">{solution.empathyTips}</p>
+                            </div>
+
+                            <div className="bg-red-50 border-l-4 border-red-400 rounded-r-lg p-6">
+                                <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                    <span className="text-2xl">⚠️</span> Saker att undvika
+                                </h2>
+                                <p className="text-gray-700">{solution.redFlags}</p>
+                            </div>
+
+                            <div className="text-center pb-6">
+                                <button
+                                    onClick={reset}
+                                    className="px-8 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+                                >
+                                    Analysera en ny konflikt
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4 md:p-6">
+                    <div className="max-w-3xl mx-auto">
+                        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-8 h-8 text-rose-500"><Heart /></div>
+                                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">NVC Konfliktlösare</h1>
+                            </div>
+                            
+                            <div className="mb-6">
+                                <div className="flex justify-between text-sm text-gray-600 mb-2">
+                                    <span>Steg {currentStep + 1} av {steps.length}</span>
+                                    <span>{Math.round(progress)}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div 
+                                        className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
+                                        style={{ width: `${progress}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            <h2 className="text-xl md:text-2xl font-bold text-purple-600 mb-4">
+                                {currentStepData.title}
+                            </h2>
+
+                            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+                                <p className="text-gray-700 font-medium">{currentStepData.question}</p>
+                            </div>
+
+                            <textarea
+                                value={currentValue}
+                                onChange={(e) => handleInputChange(e.target.value)}
+                                placeholder={currentStepData.placeholder}
+                                className="w-full h-32 p-4 border-2 border-gray-200 rounded-lg focus:border-purple-400 focus:outline-none resize-none mb-4"
+                            />
+
+                            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                                <div className="flex items-start gap-2">
+                                    <div className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5"><Lightbulb /></div>
+                                    <p className="text-sm text-gray-700">{currentStepData.help}</p>
+                                </div>
+                            </div>
+
+                            {feedback && (
+                                <div className={`border-l-4 p-4 mb-6 rounded-r-lg ${
+                                    feedback.type === 'success' ? 'bg-green-50 border-green-400' :
+                                    feedback.type === 'warning' ? 'bg-orange-50 border-orange-400' :
+                                    'bg-blue-50 border-blue-400'
+                                }`}>
+                                    <div className="flex items-start gap-2 mb-3">
+                                        <div className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                                            feedback.type === 'success' ? 'text-green-600' : 'text-orange-600'
+                                        }`}>
+                                            {feedback.type === 'success' ? <CheckCircle2 /> : <AlertCircle />}
+                                        </div>
+                                        <p className="font-semibold text-gray-800">{feedback.message}</p>
+                                    </div>
+                                    
+                                    {feedback.issues && feedback.issues.length > 0 && (
+                                        <ul className="ml-7 mb-3 space-y-1">
+                                            {feedback.issues.map((issue, i) => (
+                                                <li key={i} className="text-sm text-gray-700">• {issue}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+
+                                    <p className="text-sm text-gray-700 mb-3 ml-7">{feedback.suggestion}</p>
+
+                                    {feedback.phrases && feedback.phrases.length > 0 && (
+                                        <div className="ml-7 bg-white bg-opacity-50 rounded-lg p-3">
+                                            <p className="text-xs font-semibold text-gray-600 mb-2">💬 NVC-fraser du kan använda:</p>
+                                            {feedback.phrases.map((phrase, i) => (
+                                                <p key={i} className="text-sm text-gray-700 italic mb-1">"{phrase}"</p>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={prevStep}
+                                    disabled={currentStep === 0}
+                                    className="flex items-center gap-2 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                    <div className="w-5 h-5"><ArrowLeft /></div>
+                                    Föregående
+                                </button>
+
+                                <button
+                                    onClick={nextStep}
+                                    disabled={!currentValue.trim()}
+                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                    {currentStep === steps.length - 1 ? 'Skapa lösning' : 'Nästa steg'}
+                                    <div className="w-5 h-5"><ArrowRight /></div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<NVCApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>
